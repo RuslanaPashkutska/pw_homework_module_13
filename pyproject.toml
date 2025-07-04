@@ -22,6 +22,11 @@ redis = "^6.2.0"
 fastapi-mail = "^1.5.0"
 fastapi-limiter = "^0.1.6"
 django-environ = "^0.12.0"
+django = "^5.2.4"
+asyncpg = "^0.30.0"
+psycopg = {extras = ["binary"], version = "^3.2.9"}
+python-multipart = "^0.0.20"
+greenlet = "^3.2.3"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

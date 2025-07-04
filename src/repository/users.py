@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
+from typing import Optional
 
 from src.database import models
 from src.schemas.user import UserCreate

@@ -1,14 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.schemas.user import RequestPasswordReset
-from src.schemas.user import ResetPassword
-from src.auth.auth import create_email_verification_token_and_save
-from src.schemas.user import Token, UserLogin
-from src.schemas.user import UserCreate, UserResponse
+from src.schemas.user import RequestPasswordReset, ResetPassword, Token, UserLogin, UserCreate, UserResponse
 from src.repository import users as repository_users
-from src.auth.auth import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_email_token, create_password_reset_token_and_save, reset_password
+from src.auth.auth import get_password_hash, verify_password, create_access_token, create_refresh_token, verify_email_token, create_password_reset_token_and_save, reset_password, create_email_verification_token_and_save
 from src.services.email import send_email
 from src.database.db import get_db
+from src.conf.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -46,14 +44,12 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
         token_type="bearer"
     )
 
-
 @router.post("/request_password_reset", status_code=status.HTTP_200_OK)
 async def request_password_reset(body: RequestPasswordReset, db: AsyncSession = Depends(get_db)):
     token = await create_password_reset_token_and_save(body.email, db)
-    if token:
-        user = await repository_users.get_user_by_email(body.email, db)
-        if user:
-            await send_email(user.email, user.email, token, "reset_password")
+    user = await repository_users.get_user_by_email(body.email, db)
+    if token and user:
+        await send_email(user.email, user.email, token, "reset_password")
     return {"message": "If a user with that email exists, a password reset link has been sent."}
 
 @router.post("/reset_password", status_code=status.HTTP_200_OK)
@@ -61,4 +57,23 @@ async def reset_password_confirm(body: ResetPassword, db: AsyncSession = Depends
     user = await reset_password(body.token, body.new_password, db)
     if user is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
-    return {"message": "Password has been reset successfully."}
+    return {"message": "Password has been reset successfully"}
+
+
+@router.post("/reset-password")
+async def reset_password(token:str = Form(...), new_password: str = Form(...), db: AsyncSession = Depends(get_db)):
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=400, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = await repository_users.get_user_by_email(email, db)
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+    hashed_password = get_password_hash(new_password)
+    user.hashed_password = hashed_password
+    await db.commit()
+    return {"message": "Password has been reset successfully"}

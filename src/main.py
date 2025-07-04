@@ -7,7 +7,7 @@ import redis.asyncio as redis # Імпорт асинхронного Redis
 
 from src.conf.config import settings
 
-from src.routes import auth, contacts, users
+from src.routes import auth, contact, users
 
 from src.cache.redis_client import redis_client
 
@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
-app.include_router(contacts.router)
+app.include_router(contact.router)
 app.include_router(users.router)
 
 
